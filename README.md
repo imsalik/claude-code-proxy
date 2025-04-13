@@ -39,8 +39,8 @@ A proxy server that lets you use Anthropic clients with Gemini or OpenAI models 
    *   `ANTHROPIC_API_KEY`: (Optional) Needed only if proxying *to* Anthropic models.
    *   `OPENAI_API_KEY`: Your OpenAI API key (Required if using OpenAI models).
    *   `GEMINI_API_KEY`: Your Google AI Studio (Gemini) API key (Required if using AI Studio Gemini models).
-   *   `PREFERRED_PROVIDER`: Set to `google` (default), `openai`. This determines the primary backend for mapping Anthropic models. If using `vertex`, ensure you have authenticated with `gcloud auth application-default login`.
-   *   `GEMINI_PROVIDER`: Set to `google` (default) to use Google AI Studio API or `vertex_ai` to use Vertex AI with gcloud auth. Only applicable when using Gemini models.
+   *   `PREFERRED_PROVIDER`: Set to `google` (default), `openai`. This determines the primary backend for mapping Anthropic models.
+   *   `GEMINI_PROVIDER`: Set to `google` (default) to use Google AI Studio API or `vertex_ai` to use Vertex AI with gcloud auth. Only applicable when using Gemini models. If using `vertex`, ensure you have authenticated with `gcloud auth application-default login`.
    *   `BIG_MODEL`: The model to map `sonnet` requests to. Examples: `gpt-4o`, `gemini-2.5-pro-preview-03-25`.
    *   `SMALL_MODEL`: The model to map `haiku` requests to. Examples: `gpt-4o-mini`, `gemini-2.0-flash`.
 
@@ -84,14 +84,14 @@ This command uses a dummy authentication token and ensures that Claude only conn
 
 The proxy automatically maps Claude models to OpenAI or Gemini models based on your configuration:
 
-| Anthropic Model Family | `PREFERRED_PROVIDER` | Mapped To       | Default Target Model                         | Prefix Added |
-|------------------------|----------------------|-----------------|----------------------------------------------|--------------|
-| `claude-3-haiku-...`   | `google` (default)   | `SMALL_MODEL`   | `gemini-2.0-flash`                           | `gemini/`    |
-| `claude-3-sonnet-...`  | `google` (default)   | `BIG_MODEL`     | `gemini-2.5-pro-preview-03-25`               | `gemini/`    |
-| `claude-3-haiku-...`   | `openai`             | `SMALL_MODEL`   | `gpt-4o-mini`                                | `openai/`    |
-| `claude-3-sonnet-...`  | `openai`             | `BIG_MODEL`     | `gpt-4o`                                     | `openai/`    |
-| `claude-3-haiku-...`   | `vertex`             | `SMALL_MODEL`   | `gemini-2.0-flash`                           | `vertex_ai/` |
-| `claude-3-sonnet-...`  | `vertex`             | `BIG_MODEL`     | `gemini-2.5-pro-preview-03-25`               | `vertex_ai/` |
+| Anthropic Model Family | `PREFERRED_PROVIDER` | `GEMINI_PROVIDER` | Mapped To       | Default Target Model             | Prefix Added |
+|------------------------|----------------------|-------------------|-----------------|----------------------------------|--------------|
+| `claude-3-haiku-...`   | `google` (default)   | `google` (default)| `SMALL_MODEL`   | `gemini-2.0-flash`               | `gemini/`    |
+| `claude-3-sonnet-...`  | `google` (default)   | `google` (default)| `BIG_MODEL`     | `gemini-2.5-pro-preview-03-25`   | `gemini/`    |
+| `claude-3-haiku-...`   | `google` (default)   | `vertex_ai`       | `SMALL_MODEL`   | `gemini-2.0-flash`               | `vertex_ai/` |
+| `claude-3-sonnet-...`  | `google` (default)   | `vertex_ai`       | `BIG_MODEL`     | `gemini-2.5-pro-preview-03-25`   | `vertex_ai/` |
+| `claude-3-haiku-...`   | `openai`             | (not applicable)  | `SMALL_MODEL`   | `gpt-4o-mini`                    | `openai/`    |
+| `claude-3-sonnet-...`  | `openai`             | (not applicable)  | `BIG_MODEL`     | `gpt-4o`                         | `openai/`    |
 
 *You can override the default target models using the `BIG_MODEL` and `SMALL_MODEL` environment variables.*
 
