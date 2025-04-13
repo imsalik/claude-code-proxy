@@ -84,6 +84,11 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # Get preferred provider (default to google)
 PREFERRED_PROVIDER = os.environ.get("PREFERRED_PROVIDER", "google").lower()
+# Get Gemini provider (google API key or vertex AI via gcloud)
+GEMINI_PROVIDER = os.environ.get("GEMINI_PROVIDER", "google").lower()
+
+# Determine the Gemini model prefix based on the provider
+GEMINI_MODEL_PREFIX = "vertex_ai/" if GEMINI_PROVIDER == "vertex_ai" else "gemini/"
 
 # Get model mapping configuration from environment
 # Default to latest Gemini models if not set
@@ -107,6 +112,7 @@ OPENAI_MODELS = [
 # List of Gemini models
 GEMINI_MODELS = [
     "gemini-2.5-pro-preview-03-25",
+    "gemini-2.5-pro-exp-03-25",
     "gemini-2.0-flash"
 ]
 
@@ -190,7 +196,7 @@ class MessagesRequest(BaseModel):
         original_model = v
         new_model = v # Default to original value
 
-        logger.debug(f"📋 MODEL VALIDATION: Original='{original_model}', Preferred='{PREFERRED_PROVIDER}', BIG='{BIG_MODEL}', SMALL='{SMALL_MODEL}'")
+        logger.debug(f"MODEL VALIDATION: Original='{original_model}', Preferred='{PREFERRED_PROVIDER}', GeminiProvider='{GEMINI_PROVIDER}', BIG='{BIG_MODEL}', SMALL='{SMALL_MODEL}'")
 
         # Remove provider prefixes for easier matching
         clean_v = v
@@ -200,13 +206,19 @@ class MessagesRequest(BaseModel):
             clean_v = clean_v[7:]
         elif clean_v.startswith('gemini/'):
             clean_v = clean_v[7:]
+        elif clean_v.startswith('vertex_ai/'):
+            clean_v = clean_v[10:]
 
         # --- Mapping Logic --- START ---
         mapped = False
         # Map Haiku to SMALL_MODEL based on provider preference
         if 'haiku' in clean_v.lower():
             if PREFERRED_PROVIDER == "google" and SMALL_MODEL in GEMINI_MODELS:
-                new_model = f"gemini/{SMALL_MODEL}"
+                # Use vertex_ai prefix if GEMINI_PROVIDER is vertex_ai
+                if GEMINI_PROVIDER == "vertex_ai":
+                    new_model = f"vertex_ai/{SMALL_MODEL}"
+                else:
+                    new_model = f"gemini/{SMALL_MODEL}"
                 mapped = True
             else:
                 new_model = f"openai/{SMALL_MODEL}"
@@ -215,7 +227,11 @@ class MessagesRequest(BaseModel):
         # Map Sonnet to BIG_MODEL based on provider preference
         elif 'sonnet' in clean_v.lower():
             if PREFERRED_PROVIDER == "google" and BIG_MODEL in GEMINI_MODELS:
-                new_model = f"gemini/{BIG_MODEL}"
+                # Use vertex_ai prefix if GEMINI_PROVIDER is vertex_ai
+                if GEMINI_PROVIDER == "vertex_ai":
+                    new_model = f"vertex_ai/{BIG_MODEL}"
+                else:
+                    new_model = f"gemini/{BIG_MODEL}"
                 mapped = True
             else:
                 new_model = f"openai/{BIG_MODEL}"
@@ -223,20 +239,23 @@ class MessagesRequest(BaseModel):
 
         # Add prefixes to non-mapped models if they match known lists
         elif not mapped:
-            if clean_v in GEMINI_MODELS and not v.startswith('gemini/'):
-                new_model = f"gemini/{clean_v}"
-                mapped = True # Technically mapped to add prefix
+            if clean_v in GEMINI_MODELS:
+                if GEMINI_PROVIDER == "vertex_ai":
+                    new_model = f"vertex_ai/{clean_v}"
+                else:
+                    new_model = f"gemini/{clean_v}"
+                mapped = True
             elif clean_v in OPENAI_MODELS and not v.startswith('openai/'):
                 new_model = f"openai/{clean_v}"
                 mapped = True # Technically mapped to add prefix
         # --- Mapping Logic --- END ---
 
         if mapped:
-            logger.debug(f"📌 MODEL MAPPING: '{original_model}' ➡️ '{new_model}'")
+            logger.debug(f"MODEL MAPPING: '{original_model}' -> '{new_model}'")
         else:
              # If no mapping occurred and no prefix exists, log warning or decide default
-             if not v.startswith(('openai/', 'gemini/', 'anthropic/')):
-                 logger.warning(f"⚠️ No prefix or mapping rule for model: '{original_model}'. Using as is.")
+             if not v.startswith(('openai/', 'gemini/', 'anthropic/', 'vertex_ai/')):
+                 logger.warning(f"No prefix or mapping rule for model: '{original_model}'. Using as is.")
              new_model = v # Ensure we return the original if no rule applied
 
         # Store the original model in the values dictionary
@@ -263,7 +282,7 @@ class TokenCountRequest(BaseModel):
         original_model = v
         new_model = v # Default to original value
 
-        logger.debug(f"📋 TOKEN COUNT VALIDATION: Original='{original_model}', Preferred='{PREFERRED_PROVIDER}', BIG='{BIG_MODEL}', SMALL='{SMALL_MODEL}'")
+        logger.debug(f"TOKEN COUNT VALIDATION: Original='{original_model}', Preferred='{PREFERRED_PROVIDER}', GeminiProvider='{GEMINI_PROVIDER}', BIG='{BIG_MODEL}', SMALL='{SMALL_MODEL}'")
 
         # Remove provider prefixes for easier matching
         clean_v = v
@@ -273,13 +292,19 @@ class TokenCountRequest(BaseModel):
             clean_v = clean_v[7:]
         elif clean_v.startswith('gemini/'):
             clean_v = clean_v[7:]
+        elif clean_v.startswith('vertex_ai/'):
+            clean_v = clean_v[10:]
 
         # --- Mapping Logic --- START ---
         mapped = False
         # Map Haiku to SMALL_MODEL based on provider preference
         if 'haiku' in clean_v.lower():
             if PREFERRED_PROVIDER == "google" and SMALL_MODEL in GEMINI_MODELS:
-                new_model = f"gemini/{SMALL_MODEL}"
+                # Use vertex_ai prefix if GEMINI_PROVIDER is vertex_ai
+                if GEMINI_PROVIDER == "vertex_ai":
+                    new_model = f"vertex_ai/{SMALL_MODEL}"
+                else:
+                    new_model = f"gemini/{SMALL_MODEL}"
                 mapped = True
             else:
                 new_model = f"openai/{SMALL_MODEL}"
@@ -288,7 +313,11 @@ class TokenCountRequest(BaseModel):
         # Map Sonnet to BIG_MODEL based on provider preference
         elif 'sonnet' in clean_v.lower():
             if PREFERRED_PROVIDER == "google" and BIG_MODEL in GEMINI_MODELS:
-                new_model = f"gemini/{BIG_MODEL}"
+                # Use vertex_ai prefix if GEMINI_PROVIDER is vertex_ai
+                if GEMINI_PROVIDER == "vertex_ai":
+                    new_model = f"vertex_ai/{BIG_MODEL}"
+                else:
+                    new_model = f"gemini/{BIG_MODEL}"
                 mapped = True
             else:
                 new_model = f"openai/{BIG_MODEL}"
@@ -296,19 +325,23 @@ class TokenCountRequest(BaseModel):
 
         # Add prefixes to non-mapped models if they match known lists
         elif not mapped:
-            if clean_v in GEMINI_MODELS and not v.startswith('gemini/'):
-                new_model = f"gemini/{clean_v}"
-                mapped = True # Technically mapped to add prefix
+            if clean_v in GEMINI_MODELS:
+                # Use vertex_ai prefix if GEMINI_PROVIDER is vertex_ai
+                if GEMINI_PROVIDER == "vertex_ai":
+                    new_model = f"vertex_ai/{clean_v}"
+                else:
+                    new_model = f"gemini/{clean_v}"
+                mapped = True
             elif clean_v in OPENAI_MODELS and not v.startswith('openai/'):
                 new_model = f"openai/{clean_v}"
                 mapped = True # Technically mapped to add prefix
         # --- Mapping Logic --- END ---
 
         if mapped:
-            logger.debug(f"📌 TOKEN COUNT MAPPING: '{original_model}' ➡️ '{new_model}'")
+            logger.debug(f"TOKEN COUNT MAPPING: '{original_model}' -> '{new_model}'")
         else:
-             if not v.startswith(('openai/', 'gemini/', 'anthropic/')):
-                 logger.warning(f"⚠️ No prefix or mapping rule for token count model: '{original_model}'. Using as is.")
+             if not v.startswith(('openai/', 'gemini/', 'anthropic/', 'vertex_ai/')):
+                 logger.warning(f"No prefix or mapping rule for token count model: '{original_model}'. Using as is.")
              new_model = v # Ensure we return the original if no rule applied
 
         # Store the original model in the values dictionary
@@ -344,10 +377,12 @@ async def log_requests(request: Request, call_next):
     path = request.url.path
     
     # Log only basic request details at debug level
-    logger.debug(f"Request: {method} {path}")
+    logger.debug(f"Request: {request.method} {request.url.path}")
     
     # Process the request and get the response
     response = await call_next(request)
+    
+    logger.debug(f"Response status: {response.status_code}")
     
     return response
 
@@ -1084,6 +1119,9 @@ async def create_message(
         body_json = json.loads(body.decode('utf-8'))
         original_model = body_json.get("model", "unknown")
         
+        logger.info(f"Claude Code Request - Original Model: {original_model}")
+        logger.debug(f"Request body: {json.dumps(body_json)[:500]}...") # Keep as debug
+        
         # Get the display name for logging, just the model name without provider prefix
         display_model = original_model
         if "/" in display_model:
@@ -1096,7 +1134,7 @@ async def create_message(
         elif clean_model.startswith("openai/"):
             clean_model = clean_model[len("openai/"):]
         
-        logger.debug(f"📊 PROCESSING REQUEST: Model={request.model}, Stream={request.stream}")
+        logger.debug(f"PROCESSING REQUEST: Model={request.model}, Stream={request.stream}")
         
         # Convert Anthropic request to LiteLLM format
         litellm_request = convert_anthropic_to_litellm(request)
@@ -1104,13 +1142,20 @@ async def create_message(
         # Determine which API key to use based on the model
         if request.model.startswith("openai/"):
             litellm_request["api_key"] = OPENAI_API_KEY
-            logger.debug(f"Using OpenAI API key for model: {request.model}")
+            logger.info(f"Using OpenAI API key for mapped model: {request.model}")
+        elif request.model.startswith("vertex_ai/"):
+            # For Vertex AI models, don't set the api_key parameter at all
+            # as LiteLLM uses Google Cloud auth credentials (ADC)
+            logger.info(f"Using Vertex AI authentication (no API key) for mapped model: {request.model}")
+            # Ensure we don't pass an API key for Vertex AI
+            if "api_key" in litellm_request:
+                del litellm_request["api_key"]
         elif request.model.startswith("gemini/"):
             litellm_request["api_key"] = GEMINI_API_KEY
-            logger.debug(f"Using Gemini API key for model: {request.model}")
+            logger.info(f"Using Gemini API key for mapped model: {request.model}")
         else:
             litellm_request["api_key"] = ANTHROPIC_API_KEY
-            logger.debug(f"Using Anthropic API key for model: {request.model}")
+            logger.info(f"Using Anthropic API key for mapped model: {request.model}")
         
         # For OpenAI models - modify request format to work with limitations
         if "openai" in litellm_request["model"] and "messages" in litellm_request:
@@ -1268,7 +1313,9 @@ async def create_message(
                 200  # Assuming success at this point
             )
             # Ensure we use the async version for streaming
+            logger.info(f"Sending STREAMING request to mapped model: {litellm_request.get('model')}")
             response_generator = await litellm.acompletion(**litellm_request)
+            logger.debug(f"Streaming response started: Model={litellm_request.get('model')}")
             
             return StreamingResponse(
                 handle_streaming(response_generator, request),
@@ -1288,10 +1335,13 @@ async def create_message(
                 200  # Assuming success at this point
             )
             start_time = time.time()
+            logger.info(f"Sending NON-STREAMING request to mapped model: {litellm_request.get('model')}")
             litellm_response = litellm.completion(**litellm_request)
-            logger.debug(f"✅ RESPONSE RECEIVED: Model={litellm_request.get('model')}, Time={time.time() - start_time:.2f}s")
+            elapsed_time = time.time() - start_time
+            logger.debug(f"Non-streaming response received: Model={litellm_request.get('model')}, Time={elapsed_time:.2f}s")
             
             # Convert LiteLLM response to Anthropic format
+            logger.debug(f"Converting response from {litellm_request.get('model')} to Anthropic format")
             anthropic_response = convert_litellm_to_anthropic(litellm_response, request)
             
             return anthropic_response
@@ -1341,6 +1391,8 @@ async def count_tokens(
         # Log the incoming token count request
         original_model = request.original_model or request.model
         
+        logger.info(f"Token Count Request - Original Model: {original_model}")
+        
         # Get the display name for logging, just the model name without provider prefix
         display_model = original_model
         if "/" in display_model:
@@ -1354,6 +1406,7 @@ async def count_tokens(
             clean_model = clean_model[len("openai/"):]
         
         # Convert the messages to a format LiteLLM can understand
+        logger.debug(f"Converting token count request format for model: {request.model}")
         converted_request = convert_anthropic_to_litellm(
             MessagesRequest(
                 model=request.model,
@@ -1390,6 +1443,8 @@ async def count_tokens(
                 messages=converted_request["messages"],
             )
             
+            logger.debug(f"Token count result: {token_count} tokens for model {converted_request['model']}")
+            
             # Return Anthropic-style response
             return TokenCountResponse(input_tokens=token_count)
             
@@ -1406,7 +1461,8 @@ async def count_tokens(
 
 @app.get("/")
 async def root():
-    return {"message": "Anthropic Proxy for LiteLLM"}
+    logger.debug("Root endpoint hit - health check")
+    return {"message": "Anthropic Proxy for LiteLLM - Server is running!", "timestamp": str(datetime.now())}
 
 # Define ANSI color codes for terminal output
 class Colors:
@@ -1432,8 +1488,22 @@ def log_request_beautifully(method, path, claude_model, openai_model, num_messag
     
     # Extract just the OpenAI model name without provider prefix
     openai_display = openai_model
+    provider_info = ""
     if "/" in openai_display:
-        openai_display = openai_display.split("/")[-1]
+        provider, model_name = openai_display.split("/", 1)
+        openai_display = model_name # Keep only the model name
+        
+        # Add detailed provider information
+        if provider == "vertex_ai":
+            provider_tag = f"{Colors.DIM}(Vertex AI){Colors.RESET} "
+            provider_info = f"{Colors.YELLOW}Using Vertex AI{Colors.RESET}"
+        elif provider == "gemini":
+            provider_tag = f"{Colors.DIM}(Gemini){Colors.RESET} "
+            provider_info = f"{Colors.YELLOW}Using Gemini API{Colors.RESET}"
+        else:
+            provider_tag = f"{Colors.DIM}({provider}){Colors.RESET} "
+    else:
+        provider_tag = "" # No provider prefix
     openai_display = f"{Colors.GREEN}{openai_display}{Colors.RESET}"
     
     # Format tools and messages
@@ -1441,12 +1511,15 @@ def log_request_beautifully(method, path, claude_model, openai_model, num_messag
     messages_str = f"{Colors.BLUE}{num_messages} messages{Colors.RESET}"
     
     # Format status code
-    status_str = f"{Colors.GREEN}✓ {status_code} OK{Colors.RESET}" if status_code == 200 else f"{Colors.RED}✗ {status_code}{Colors.RESET}"
+    status_str = f"{Colors.GREEN}{status_code} OK{Colors.RESET}" if status_code == 200 else f"{Colors.RED}{status_code}{Colors.RESET}"
     
-
     # Put it all together in a clear, beautiful format
     log_line = f"{Colors.BOLD}{method} {endpoint}{Colors.RESET} {status_str}"
-    model_line = f"{claude_display} → {openai_display} {tools_str} {messages_str}"
+    model_line = f"{claude_display} -> {openai_display} {tools_str} {messages_str}"
+    
+    # Add provider info if available
+    if provider_info:
+        model_line += f" - {provider_info}"
     
     # Print to console
     print(log_line)

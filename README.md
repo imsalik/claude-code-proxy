@@ -4,15 +4,15 @@
 
 A proxy server that lets you use Anthropic clients with Gemini or OpenAI models via LiteLLM. 🌉
 
-
-![Anthropic API Proxy](pic.png)
+*This project is forked from: https://github.com/1rgs/claude-code-proxy*
 
 ## Quick Start ⚡
 
 ### Prerequisites
 
-- OpenAI API key 🔑
-- Google AI Studio (Gemini) API key (if using default provider) 🔑
+- OpenAI API key (if using OpenAI) 🔑
+- Google AI Studio (Gemini) API key (if using AI Studio) 🔑
+- Google Cloud authentication configured via `gcloud auth application-default login` (if using Vertex AI) ☁️
 - [uv](https://github.com/astral-sh/uv) installed.
 
 ### Setup 🛠️
@@ -30,22 +30,22 @@ A proxy server that lets you use Anthropic clients with Gemini or OpenAI models 
    *(`uv` will handle dependencies based on `pyproject.toml` when you run the server)*
 
 3. **Configure Environment Variables**:
-   Copy the example environment file:
+   Create a `.env` file with your API keys and model configurations:
    ```bash
-   cp .env.example .env
+   touch .env
    ```
    Edit `.env` and fill in your API keys and model configurations:
 
    *   `ANTHROPIC_API_KEY`: (Optional) Needed only if proxying *to* Anthropic models.
-   *   `OPENAI_API_KEY`: Your OpenAI API key (Required if using OpenAI models as fallback or primary).
-   *   `GEMINI_API_KEY`: Your Google AI Studio (Gemini) API key (Required if using the default Gemini preference).
-   *   `PREFERRED_PROVIDER` (Optional): Set to `google` (default) or `openai`. This determines the primary backend for mapping `haiku`/`sonnet`.
-   *   `BIG_MODEL` (Optional): The model to map `sonnet` requests to. Defaults to `gemini-2.5-pro-preview-03-25` (if `PREFERRED_PROVIDER=google` and model is known) or `gpt-4o`.
-   *   `SMALL_MODEL` (Optional): The model to map `haiku` requests to. Defaults to `gemini-2.0-flash` (if `PREFERRED_PROVIDER=google` and model is known) or `gpt-4o-mini`.
+   *   `OPENAI_API_KEY`: Your OpenAI API key (Required if using OpenAI models).
+   *   `GEMINI_API_KEY`: Your Google AI Studio (Gemini) API key (Required if using AI Studio Gemini models).
+   *   `PREFERRED_PROVIDER`: Set to `google` (default), `openai`, or `vertex`. This determines the primary backend for mapping Anthropic models. If using `vertex`, ensure you have authenticated with `gcloud auth application-default login`.
+   *   `BIG_MODEL`: The model to map `sonnet` requests to. Examples: `gpt-4o`, `gemini-2.5-pro-preview-03-25`.
+   *   `SMALL_MODEL`: The model to map `haiku` requests to. Examples: `gpt-4o-mini`, `gemini-2.0-flash`.
 
    **Mapping Logic:**
-   - If `PREFERRED_PROVIDER=google` (default), `haiku`/`sonnet` map to `SMALL_MODEL`/`BIG_MODEL` prefixed with `gemini/` *if* those models are in the server's known `GEMINI_MODELS` list.
-   - Otherwise (if `PREFERRED_PROVIDER=openai` or the specified Google model isn't known), they map to `SMALL_MODEL`/`BIG_MODEL` prefixed with `openai/`.
+   - The proxy maps `claude-3-haiku-...` to `SMALL_MODEL` and `claude-3-sonnet-...` to `BIG_MODEL`.
+   - The appropriate provider prefix (`openai/`, `gemini/`, `vertex_ai/`) is added based on the chosen model and `PREFERRED_PROVIDER`.
 
 4. **Run the server**:
    ```bash
@@ -65,16 +65,34 @@ A proxy server that lets you use Anthropic clients with Gemini or OpenAI models 
    ANTHROPIC_BASE_URL=http://localhost:8082 claude
    ```
 
-3. **That's it!** Your Claude Code client will now use the configured backend models (defaulting to Gemini) through the proxy. 🎯
+3. **That's it!** Your Claude Code client will now use the configured backend models through the proxy. 🎯
+
+### Troubleshooting Connection Issues
+
+Sometimes Claude may continue to use an external service (e.g., Vertex AI) instead of your local server. This happens when your credentials cache is still active.
+
+To force Claude to use your local proxy server, explicitly override the auth token:
+
+```bash
+ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_AUTH_TOKEN="some-api-key" claude
+```
+
+This command uses a dummy authentication token and ensures that Claude only connects to your local proxy.
 
 ## Model Mapping 🗺️
 
-The proxy automatically maps Claude models to either OpenAI or Gemini models based on the configured model:
+The proxy automatically maps Claude models to OpenAI or Gemini models based on your configuration:
 
-| Claude Model | Default Mapping | When BIG_MODEL/SMALL_MODEL is a Gemini model |
-|--------------|--------------|---------------------------|
-| haiku | openai/gpt-4o-mini | gemini/[model-name] |
-| sonnet | openai/gpt-4o | gemini/[model-name] |
+| Anthropic Model Family | `PREFERRED_PROVIDER` | Mapped To       | Default Target Model                         | Prefix Added |
+|------------------------|----------------------|-----------------|----------------------------------------------|--------------|
+| `claude-3-haiku-...`   | `google` (default)   | `SMALL_MODEL`   | `gemini-2.0-flash`                           | `gemini/`    |
+| `claude-3-sonnet-...`  | `google` (default)   | `BIG_MODEL`     | `gemini-2.5-pro-preview-03-25`               | `gemini/`    |
+| `claude-3-haiku-...`   | `openai`             | `SMALL_MODEL`   | `gpt-4o-mini`                                | `openai/`    |
+| `claude-3-sonnet-...`  | `openai`             | `BIG_MODEL`     | `gpt-4o`                                     | `openai/`    |
+| `claude-3-haiku-...`   | `vertex`             | `SMALL_MODEL`   | `gemini-2.0-flash`                           | `vertex_ai/` |
+| `claude-3-sonnet-...`  | `vertex`             | `BIG_MODEL`     | `gemini-2.5-pro-preview-03-25`               | `vertex_ai/` |
+
+*You can override the default target models using the `BIG_MODEL` and `SMALL_MODEL` environment variables.*
 
 ### Supported Models
 
@@ -92,36 +110,32 @@ The following OpenAI models are supported with automatic `openai/` prefix handli
 - gpt-4o-mini-audio-preview
 
 #### Gemini Models
-The following Gemini models are supported with automatic `gemini/` prefix handling:
+The following Gemini models are supported with automatic prefix handling:
 - gemini-2.5-pro-preview-03-25
+- gemini-2.5-pro-exp-03-25
 - gemini-2.0-flash
-
-### Model Prefix Handling
-The proxy automatically adds the appropriate prefix to model names:
-- OpenAI models get the `openai/` prefix 
-- Gemini models get the `gemini/` prefix
-- The BIG_MODEL and SMALL_MODEL will get the appropriate prefix based on whether they're in the OpenAI or Gemini model lists
-
-For example:
-- `gpt-4o` becomes `openai/gpt-4o`
-- `gemini-2.5-pro-preview-03-25` becomes `gemini/gemini-2.5-pro-preview-03-25`
-- When BIG_MODEL is set to a Gemini model, Claude Sonnet will map to `gemini/[model-name]`
 
 ### Customizing Model Mapping
 
-You can customize which models are used via environment variables:
+You can customize which models are used via environment variables in your `.env` file:
 
-- `BIG_MODEL`: The model to use for Claude Sonnet models (default: "gpt-4o")
-- `SMALL_MODEL`: The model to use for Claude Haiku models (default: "gpt-4o-mini")
-
-Add these to your `.env` file to customize:
 ```
-OPENAI_API_KEY=your-openai-key
-# For OpenAI models (default)
+# For OpenAI models
+PREFERRED_PROVIDER=openai
+OPENAI_API_KEY=sk-...
 BIG_MODEL=gpt-4o
 SMALL_MODEL=gpt-4o-mini
 
-# For Gemini models
+# For Gemini models (AI Studio)
+# PREFERRED_PROVIDER=google
+# GEMINI_API_KEY=your-ai-studio-key
+# BIG_MODEL=gemini-2.5-pro-preview-03-25
+# SMALL_MODEL=gemini-2.0-flash
+
+# For Vertex AI models
+# PREFERRED_PROVIDER=vertex
+# GEMINI_PROVIDER=vertex_ai
+# # Ensure gcloud auth is configured
 # BIG_MODEL=gemini-2.5-pro-preview-03-25
 # SMALL_MODEL=gemini-2.0-flash
 ```
@@ -129,13 +143,7 @@ SMALL_MODEL=gpt-4o-mini
 Or set them directly when running the server:
 ```bash
 # Using OpenAI models (with uv)
-BIG_MODEL=gpt-4o SMALL_MODEL=gpt-4o-mini uv run uvicorn server:app --host 0.0.0.0 --port 8082
-
-# Using Gemini models (with uv)
-BIG_MODEL=gemini-2.5-pro-preview-03-25 SMALL_MODEL=gemini-2.0-flash uv run uvicorn server:app --host 0.0.0.0 --port 8082
-
-# Mix and match (with uv)
-BIG_MODEL=gemini-2.5-pro-preview-03-25 SMALL_MODEL=gpt-4o-mini uv run uvicorn server:app --host 0.0.0.0 --port 8082
+PREFERRED_PROVIDER=openai OPENAI_API_KEY=sk-... BIG_MODEL=gpt-4o SMALL_MODEL=gpt-4o-mini uv run uvicorn server:app --host 0.0.0.0 --port 8082
 ```
 
 ## How It Works 🧩
@@ -143,13 +151,9 @@ BIG_MODEL=gemini-2.5-pro-preview-03-25 SMALL_MODEL=gpt-4o-mini uv run uvicorn se
 This proxy works by:
 
 1. **Receiving requests** in Anthropic's API format 📥
-2. **Translating** the requests to OpenAI format via LiteLLM 🔄
-3. **Sending** the translated request to OpenAI 📤
+2. **Translating** the requests to OpenAI/Gemini format via LiteLLM 🔄
+3. **Sending** the translated request to the selected provider 📤
 4. **Converting** the response back to Anthropic format 🔄
 5. **Returning** the formatted response to the client ✅
 
 The proxy handles both streaming and non-streaming responses, maintaining compatibility with all Claude clients. 🌊
-
-## Contributing 🤝
-
-Contributions are welcome! Please feel free to submit a Pull Request. 🎁
