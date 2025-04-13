@@ -32,7 +32,7 @@ A proxy server that lets you use Anthropic clients with Gemini or OpenAI models 
 3. **Configure Environment Variables**:
    Create a `.env` file with your API keys and model configurations:
    ```bash
-   touch .env
+   cp .env.example .env
    ```
    Edit `.env` and fill in your API keys and model configurations:
 
