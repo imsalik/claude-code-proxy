@@ -39,7 +39,8 @@ A proxy server that lets you use Anthropic clients with Gemini or OpenAI models 
    *   `ANTHROPIC_API_KEY`: (Optional) Needed only if proxying *to* Anthropic models.
    *   `OPENAI_API_KEY`: Your OpenAI API key (Required if using OpenAI models).
    *   `GEMINI_API_KEY`: Your Google AI Studio (Gemini) API key (Required if using AI Studio Gemini models).
-   *   `PREFERRED_PROVIDER`: Set to `google` (default), `openai`, or `vertex`. This determines the primary backend for mapping Anthropic models. If using `vertex`, ensure you have authenticated with `gcloud auth application-default login`.
+   *   `PREFERRED_PROVIDER`: Set to `google` (default), `openai`. This determines the primary backend for mapping Anthropic models. If using `vertex`, ensure you have authenticated with `gcloud auth application-default login`.
+   *   `GEMINI_PROVIDER`: Set to `google` (default) to use Google AI Studio API or `vertex_ai` to use Vertex AI with gcloud auth. Only applicable when using Gemini models.
    *   `BIG_MODEL`: The model to map `sonnet` requests to. Examples: `gpt-4o`, `gemini-2.5-pro-preview-03-25`.
    *   `SMALL_MODEL`: The model to map `haiku` requests to. Examples: `gpt-4o-mini`, `gemini-2.0-flash`.
 
