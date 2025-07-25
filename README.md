@@ -19,7 +19,7 @@ A proxy server that lets you use Anthropic clients with Gemini or OpenAI models 
 
 1. **Clone this repository**:
    ```bash
-   git clone https://github.com/muhammad-salik-salam/claude-code-proxy.git
+   git clone https://github.com/imsalik/claude-code-proxy.git
    cd claude-code-proxy
    ```
 
